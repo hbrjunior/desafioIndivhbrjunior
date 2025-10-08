@@ -1,4 +1,4 @@
-# app.py - VERSÃO COMPLETA CORRIGIDA
+# app.py - VERSÃO DEFINITIVA COM BOTÕES FUNCIONANDO
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -213,7 +213,6 @@ class DataAnalysisAgent:
         
         return None
 
-# Interface principal
 def main():
     st.title("🔍 Agente de IA para Análise de Dados CSV")
     st.markdown("""
@@ -280,44 +279,46 @@ def main():
             for col in current_df.columns:
                 st.write(f"- {col} ({current_df[col].dtype})")
         
-        # Área de perguntas e respostas
+        # Área de perguntas e respostas - VERSÃO CORRIGIDA
         col1, col2 = st.columns([2, 1])
         
         with col1:
             st.subheader("💬 Faça sua pergunta")
             
-            # Campo de texto que reage ao selected_question - CORRIGIDO
-            question = st.text_input(
-                "Exemplos: 'Quais são os tipos de dados?', 'Mostre um histograma', 'Existem outliers?'",
-                value=st.session_state.selected_question,
-                key="user_question_input"
-            )
+            # Usar approach diferente - criar um form
+            with st.form(key='question_form'):
+                question = st.text_input(
+                    "Exemplos: 'Quais são os tipos de dados?', 'Mostre um histograma', 'Existem outliers?'",
+                    value=st.session_state.selected_question
+                )
+                
+                submit_button = st.form_submit_button("🔍 Analisar")
+                
+                if submit_button and question:
+                    with st.spinner("Analisando dados..."):
+                        # Processar pergunta
+                        insights = agent.analyze_question(question, current_df)
+                        visualization = agent.generate_visualization(question, current_df)
+                        
+                        # Adicionar à memória
+                        agent.memory.add_message("user", question)
+                        
+                        # Exibir resposta
+                        if insights:
+                            response = "## 📈 Análise dos Dados\n\n" + "\n".join(insights)
+                            agent.memory.add_message("assistant", response)
+                            st.markdown(response)
+                        
+                        # Exibir visualização
+                        if visualization:
+                            st.plotly_chart(visualization, use_container_width=True)
+                            agent.memory.add_insight(f"Gráfico gerado para: {question}")
+                        elif any(word in question.lower() for word in ['histograma', 'gráfico', 'visualização']):
+                            st.warning("⚠️ Não foi possível gerar o gráfico. Tente especificar uma coluna numérica.")
             
             # Limpar selected_question após usar
-            if st.session_state.selected_question and question == st.session_state.selected_question:
+            if st.session_state.selected_question:
                 st.session_state.selected_question = ""
-            
-            if st.button("🔍 Analisar", type="primary") and question:
-                with st.spinner("Analisando dados..."):
-                    # Processar pergunta
-                    insights = agent.analyze_question(question, current_df)
-                    visualization = agent.generate_visualization(question, current_df)
-                    
-                    # Adicionar à memória
-                    agent.memory.add_message("user", question)
-                    
-                    # Exibir resposta
-                    if insights:
-                        response = "## 📈 Análise dos Dados\n\n" + "\n".join(insights)
-                        agent.memory.add_message("assistant", response)
-                        st.markdown(response)
-                    
-                    # Exibir visualização
-                    if visualization:
-                        st.plotly_chart(visualization, use_container_width=True)
-                        agent.memory.add_insight(f"Gráfico gerado para: {question}")
-                    elif any(word in question.lower() for word in ['histograma', 'gráfico', 'visualização']):
-                        st.warning("⚠️ Não foi possível gerar o gráfico. Tente especificar uma coluna numérica.")
         
         with col2:
             st.subheader("💡 Perguntas Sugeridas")
@@ -330,8 +331,8 @@ def main():
                 "Qual a distribuição dos dados?"
             ]
             
-            for q in suggested_questions:
-                if st.button(q, key=f"suggest_{hash(q)}"):
+            for i, q in enumerate(suggested_questions):
+                if st.button(q, key=f"btn_{i}"):
                     st.session_state.selected_question = q
                     st.rerun()
         
