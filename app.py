@@ -1,4 +1,4 @@
-# app.py - VERSÃO COMPLETA E CORRIGIDA
+# app.py - VERSÃO COMPLETA CORRIGIDA
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -227,6 +227,10 @@ def main():
     
     agent = st.session_state.agent
     
+    # Inicializar selected_question se não existir
+    if 'selected_question' not in st.session_state:
+        st.session_state.selected_question = ""
+    
     # Upload de arquivo
     uploaded_file = st.file_uploader("📤 Carregue seu arquivo CSV", type=['csv'])
     
@@ -282,16 +286,16 @@ def main():
         with col1:
             st.subheader("💬 Faça sua pergunta")
             
-            # Usar um key único para evitar conflitos
+            # Campo de texto que reage ao selected_question - CORRIGIDO
             question = st.text_input(
                 "Exemplos: 'Quais são os tipos de dados?', 'Mostre um histograma', 'Existem outliers?'",
+                value=st.session_state.selected_question,
                 key="user_question_input"
             )
             
-            # Verificar se há pergunta selecionada das sugestões
-            if 'selected_question' in st.session_state and st.session_state.selected_question:
-                question = st.session_state.selected_question
-                st.session_state.selected_question = ""  # Limpar após usar
+            # Limpar selected_question após usar
+            if st.session_state.selected_question and question == st.session_state.selected_question:
+                st.session_state.selected_question = ""
             
             if st.button("🔍 Analisar", type="primary") and question:
                 with st.spinner("Analisando dados..."):
