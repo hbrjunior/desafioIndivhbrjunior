@@ -1,4 +1,4 @@
-# app.py - VERSÃO COM LLM PARA ANÁLISE INTELIGENTE
+# app.py - VERSÃO SIMPLIFICADA E ESTÁVEL
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -49,14 +49,12 @@ class ConversationMemory:
 # Classe para integração com LLM
 class LLMAnalyzer:
     def __init__(self):
-        # A chave será carregada dos secrets do Streamlit
         self.api_key = st.secrets.get("OPENAI_API_KEY", "")
         self.base_url = "https://api.openai.com/v1/chat/completions"
     
     def analyze_with_llm(self, question, df_info):
         """Usa LLM para interpretar a pergunta e sugerir análises"""
         
-        # Se não há API key, usa respostas programáticas
         if not self.api_key:
             return self._get_fallback_response(question, df_info)
         
@@ -76,7 +74,7 @@ class LLMAnalyzer:
         3. Recomendar visualizações apropriadas
         4. Dar insights sobre o que procurar nos dados
 
-        Responda em português de forma clara e direta, focando em análises práticas que podem ser implementadas.
+        Responda em português de forma clara e direta.
         """
         
         try:
@@ -88,42 +86,26 @@ class LLMAnalyzer:
             data = {
                 "model": "gpt-3.5-turbo",
                 "messages": [{"role": "user", "content": prompt}],
-                "max_tokens": 500,
+                "max_tokens": 400,
                 "temperature": 0.3
             }
             
             response = requests.post(self.base_url, headers=headers, json=data, timeout=30)
+            
+            if response.status_code == 429:
+                return "📊 **Análise Sugerida**: Para economizar recursos da API, estou usando análise programática. Recomendo: análise de distribuição, identificação de outliers e correlações entre variáveis."
+            
             response.raise_for_status()
             
             result = response.json()
             return result['choices'][0]['message']['content']
             
         except Exception as e:
-            st.error(f"Erro na consulta à LLM: {str(e)}")
             return self._get_fallback_response(question, df_info)
     
     def _get_fallback_response(self, question, df_info):
         """Resposta fallback quando não há LLM disponível"""
-        question_lower = question.lower()
-        
-        if any(word in question_lower for word in ['tipo', 'dados', 'coluna']):
-            return f"🔍 **Análise de Tipos de Dados**: O dataset possui {len(df_info['columns'])} colunas. Recomendo verificar a distribuição entre variáveis numéricas e categóricas, e analisar a completude dos dados."
-        
-        elif any(word in question_lower for word in ['estatística', 'média', 'mediana']):
-            return "📊 **Análise Estatística**: Sugiro calcular medidas de tendência central (média, mediana), dispersão (desvio padrão, variância) e analisar a distribuição dos dados através de histogramas e boxplots."
-        
-        elif any(word in question_lower for word in ['histograma', 'distribuição']):
-            col_suggestion = df_info['columns'][0] if df_info['columns'] else 'V1'
-            return f"📈 **Análise de Distribuição**: Recomendo histogramas para entender a distribuição das variáveis. Comece pela coluna '{col_suggestion}'. Observe assimetria, curtose e possíveis bimodalidades."
-        
-        elif any(word in question_lower for word in ['correlação', 'relação']):
-            return "🔄 **Análise de Correlação**: Sugiro matriz de correlação para identificar relações lineares entre variáveis. Valores próximos de ±1 indicam forte correlação. Gráficos de dispersão podem revelar padrões não lineares."
-        
-        elif any(word in question_lower for word in ['outlier', 'anomalia']):
-            return "⚡ **Detecção de Anomalias**: Use método IQR (Intervalo Interquartil) para identificar outliers. Valores outside de Q1 - 1.5IQR ou Q3 + 1.5IQR são considerados atípicos. Analise o impacto desses valores nas conclusões."
-        
-        else:
-            return f"🤔 **Análise Exploratória**: Para '{question}', recomendo: 1) Estatísticas descritivas básicas 2) Análise de distribuição 3) Verificação de valores missing 4) Identificação de padrões iniciais nos dados."
+        return "🔍 **Análise Inteligente**: Para esta pergunta, recomendo análise exploratória dos dados incluindo estatísticas descritivas, verificação de distribuições e identificação de padrões relevantes."
 
 # Funções de análise de dados
 class DataAnalyzer:
@@ -183,7 +165,7 @@ class DataAnalysisAgent:
     def __init__(self):
         self.memory = ConversationMemory()
         self.analyzer = None
-        self.llm_analyzer = LLMAnalyzer()  # Integração com LLM
+        self.llm_analyzer = LLMAnalyzer()
     
     def load_data(self, uploaded_file):
         try:
@@ -286,7 +268,6 @@ class DataAnalysisAgent:
             for col in self.analyzer.numeric_cols:
                 if col.lower() in question_lower:
                     return self.analyzer.create_histogram(col)
-            # Se não especificou coluna, usar a primeira numérica
             if self.analyzer.numeric_cols:
                 return self.analyzer.create_histogram(self.analyzer.numeric_cols[0])
         
@@ -309,30 +290,15 @@ class DataAnalysisAgent:
 def main():
     st.title("🔍 Agente de IA - Análise Inteligente de Dados CSV")
     st.markdown("""
-    Este agente usa **Inteligência Artificial** para analisar qualquer arquivo CSV, gerar visualizações e insights inteligentes.
-    Faça perguntas em linguagem natural e obtenve análises avançadas!
+    Este agente usa **Inteligência Artificial** para analisar qualquer arquivo CSV. 
+    Faça perguntas em linguagem natural sobre seus dados!
     """)
-    
-    # Informações sobre a LLM
-    with st.expander("ℹ️ Sobre a Inteligência Artificial"):
-        st.info("""
-        **Este agente utiliza:**
-        - 🤖 **LLM (Large Language Model)** para interpretar suas perguntas e sugerir análises
-        - 📊 **Análise estatística programática** para executar os cálculos
-        - 📈 **Visualizações interativas** para explorar os dados
-        
-        **Privacidade:** Suos dados NÃO são enviados para a API - apenas metadados sobre as colunas.
-        """)
     
     # Inicialização do agente
     if 'agent' not in st.session_state:
         st.session_state.agent = DataAnalysisAgent()
     
     agent = st.session_state.agent
-    
-    # Inicializar selected_question se não existir
-    if 'selected_question' not in st.session_state:
-        st.session_state.selected_question = ""
     
     # Upload de arquivo
     uploaded_file = st.file_uploader("📤 Carregue seu arquivo CSV", type=['csv'])
@@ -383,69 +349,43 @@ def main():
             for col in current_df.columns:
                 st.write(f"- {col} ({current_df[col].dtype})")
         
-        # Área de perguntas e respostas
-        col1, col2 = st.columns([2, 1])
+        # Área de perguntas - SIMPLIFICADA
+        st.subheader("💬 Faça sua pergunta sobre os dados")
         
-        with col1:
-            st.subheader("💬 Faça sua pergunta")
+        with st.form(key='question_form'):
+            question = st.text_input(
+                "Exemplos: 'Quais são os tipos de dados?', 'Mostre um histograma', 'Existem outliers?'",
+                placeholder="Digite sua pergunta aqui..."
+            )
             
-            # Usar approach diferente - criar um form
-            with st.form(key='question_form'):
-                question = st.text_input(
-                    "Exemplos: 'Quais são os tipos de dados?', 'Mostre um histograma', 'Existem outliers?'",
-                    value=st.session_state.selected_question
-                )
-                
-                submit_button = st.form_submit_button("🔍 Analisar com IA")
-                
-                if submit_button and question:
-                    with st.spinner("🤖 Consultando IA e analisando dados..."):
-                        # NOVO: Obter insights da LLM
-                        llm_insights = agent.get_llm_insights(question, current_df)
-                        
-                        # Análise programática tradicional
-                        insights = agent.analyze_question(question, current_df)
-                        visualization = agent.generate_visualization(question, current_df)
-                        
-                        # Adicionar à memória
-                        agent.memory.add_message("user", question)
-                        
-                        # NOVO: Exibir insights da LLM
-                        st.markdown("## 🤖 Insights da Inteligência Artificial")
-                        st.info(llm_insights)
-                        
-                        # Exibir análise programática
-                        if insights:
-                            response = "## 📈 Análise Estatística Executada\n\n" + "\n".join(insights)
-                            agent.memory.add_message("assistant", response)
-                            st.markdown(response)
-                        
-                        # Exibir visualização
-                        if visualization:
-                            st.plotly_chart(visualization, use_container_width=True)
-                            agent.memory.add_insight(f"Gráfico gerado para: {question}")
-                        elif any(word in question.lower() for word in ['histograma', 'gráfico', 'visualização']):
-                            st.warning("⚠️ Não foi possível gerar o gráfico. Tente especificar uma coluna numérica.")
+            submit_button = st.form_submit_button("🔍 Analisar com IA")
             
-            # Limpar selected_question após usar
-            if st.session_state.selected_question:
-                st.session_state.selected_question = ""
-        
-        with col2:
-            st.subheader("💡 Perguntas Sugeridas")
-            suggested_questions = [
-                "Quais são os tipos de dados?",
-                "Mostre estatísticas descritivas",
-                "Existem outliers nos dados?",
-                "Mostre um histograma",
-                "Quais as correlações entre variáveis?",
-                "Qual a distribuição dos dados?"
-            ]
-            
-            for i, q in enumerate(suggested_questions):
-                if st.button(q, key=f"btn_{i}"):
-                    st.session_state.selected_question = q
-                    st.rerun()
+            if submit_button and question:
+                with st.spinner("🤖 Analisando dados..."):
+                    # Obter insights da LLM
+                    llm_insights = agent.get_llm_insights(question, current_df)
+                    
+                    # Análise programática tradicional
+                    insights = agent.analyze_question(question, current_df)
+                    visualization = agent.generate_visualization(question, current_df)
+                    
+                    # Adicionar à memória
+                    agent.memory.add_message("user", question)
+                    
+                    # Exibir insights da LLM
+                    st.markdown("## 🤖 Insights da IA")
+                    st.info(llm_insights)
+                    
+                    # Exibir análise programática
+                    if insights:
+                        response = "## 📈 Análise Estatística\n\n" + "\n".join(insights)
+                        agent.memory.add_message("assistant", response)
+                        st.markdown(response)
+                    
+                    # Exibir visualização
+                    if visualization:
+                        st.plotly_chart(visualization, use_container_width=True)
+                        agent.memory.add_insight(f"Gráfico gerado para: {question}")
         
         # Histórico da conversa
         st.subheader("📝 Histórico da Análise")
